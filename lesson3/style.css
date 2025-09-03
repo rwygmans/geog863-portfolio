@@ -1,0 +1,95 @@
+/* Base reset */
+html, body { margin: 0; padding: 0; }
+
+/* Typography */
+body {
+  font-family: "Lucida Fax", "Lucida Bright", Garamond, serif;
+  line-height: 1.5;
+  color: #222222;
+  background: #ffffff;
+}
+
+/* Page container */
+#page {
+  width: 800px;
+  margin: 40px auto;
+}
+
+/* Headings and paragraphs */
+h1, h2, h3 { font-weight: bold; }
+h1 { font-size: 30px; color: #800080; font-family: "Lucida Fax", "Lucida Bright", Garamond, serif; margin: 0 0 15px 0; }
+h2 { font-size: 24px; margin: 0 0 12px 0; }
+h3 { font-size: 16px; color: #800080; font-family: "Bookman Old Style", Bookman, "Times New Roman", serif; text-transform: uppercase; margin: 0 0 8px 0; }
+p { margin: 0 0 14px 0; font-family: "Lucida Sans", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif; font-size: 14px; }
+
+/* Lists */
+ul, ol { padding: 0; }
+ul { margin: 0 0 14px 28px; font-family: "Lucida Sans", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif; font-size: 14px; }
+ol { margin: 0 0 16px 32px; }
+li { margin: 4px 0; font-family: "Lucida Sans", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif; font-size: 14px; }
+
+/* (removed duplicate early table block; consolidated below) */
+
+/* Horizontal rule */
+hr { border: 0; border-top: 1px solid #222222; height: 0; margin: 8px 0 16px 0; }
+
+/* Multi-column helpers (CSS3) */
+.columns-2 {
+  -webkit-column-count: 2;
+  -moz-column-count: 2;
+  column-count: 2;
+  -webkit-column-gap: 32px;
+  -moz-column-gap: 32px;
+  column-gap: 32px;
+}
+.columns-2 li { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
+
+.columns-3 {
+  -webkit-column-count: 3;
+  -moz-column-count: 3;
+  column-count: 3;
+  -webkit-column-gap: 32px;
+  -moz-column-gap: 32px;
+  column-gap: 32px;
+}
+.columns-3 h2, .columns-3 h3, .columns-3 p { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
+
+/* Font size helper (in use) */
+.small { font-size: 14.4px; }
+
+/* Spacing utility (in use) */
+.mt-2 { margin-top: 16px; }
+
+/* Links */
+a { color: #0645ad; text-decoration: underline; }
+.back-btn { display: inline-block; padding: 6px 10px; background: #f2f2f2; color: #0645ad; text-decoration: none; border: 1px solid #cccccc; border-radius: 3px; }
+.back-btn:hover { background: #e9e9e9; }
+
+/* Tables */
+table { width: 100%; margin: 16px auto; font-size: 13px; font-family: Arial, Helvetica, sans-serif; border-collapse: collapse; }
+caption.caption { text-align: left; font-weight: bold; margin-bottom: 6.5px; }
+th, td { border: 1px solid #cccccc; padding: 5.2px 7.8px; text-align: left; vertical-align: top; }
+th { background: #ffffff; }
+sup { font-size: 9px; line-height: 1; }
+table sup { font-size: 8px; }
+
+/* Footnotes */
+.footnotes { font-size: 10px; margin-top: 10px; }
+.footnotes p, .footnotes ol, .footnotes li { font-size: 10px; }
+.footnotes ol { margin: 5px 0 0 14px; }
+.footnotes sup { font-size: 8px; }
+.inline-footnotes { list-style: none; margin: 0; padding: 0; }
+.inline-footnotes li { margin: 4px 0; }
+.stat-star { font-weight: bold; }
+
+/* Subtitle under title */
+.subtitle { font-size: 20px; color: #666666; font-style: italic; font-family: "Lucida Fax", "Lucida Bright", Garamond, serif; }
+
+/* Byline (Issued / By ...) */
+.byline { font-family: "Lucida Sans", "Lucida Sans Unicode", "Lucida Grande", Arial, sans-serif; font-size: 12px; }
+.byline-code { font-size: 9px; }
+
+/* Emphasis for first data row (United States) */
+tbody tr:first-child th,
+tbody tr:first-child td { color: #800080; font-weight: bold; }
+
