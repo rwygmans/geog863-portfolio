@@ -54,10 +54,10 @@ hr { border: 0; border-top: 1px solid #222222; height: 0; margin: 8px 0 16px 0; 
 }
 .columns-3 h2, .columns-3 h3, .columns-3 p { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
 
-/* Font size helper (in use) */
+/* Font size helper */
 .small { font-size: 14.4px; }
 
-/* Spacing utility (in use) */
+/* Spacing utility */
 .mt-2 { margin-top: 16px; }
 
 /* Links */
