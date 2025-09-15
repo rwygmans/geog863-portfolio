@@ -20,23 +20,19 @@
     <hr />
     <h2>Reflection</h2>
     <p>
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent et dictum ipsum. Donec luctus, lectus quis accumsan
-      lacinia, arcu arcu interdum nulla, in interdum nunc nibh nec arcu. Nullam volutpat, nulla sed laoreet aliquet, ipsum lorem
-      placerat libero, a convallis tortor nunc id lorem. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere
-      cubilia curae; Vivamus nec libero vitae libero pharetra condimentum. Integer sed orci id augue feugiat pellentesque. Donec
-      consequat, ipsum quis ultricies eleifend, tortor massa viverra neque, ac finibus nibh leo at lorem.
+      Lesson 4 gave me a deeper look into the ArcGIS Maps SDK for JavaScript, and also reminded me how much I still have to learn about working with JavaScript in general. 
+      I was able to follow along with the examples in CodePen and even figured out how to get the code running there, which gave me some confidence. But when I tried moving 
+      the code into separate HTML, CSS, and JS files, I hit a wall. The page just wouldn’t load, and I wasn’t sure what I had done wrong.
     </p>
     <p>
-      Aliquam erat volutpat. Nam finibus consectetur urna, eu tristique nibh convallis at. Sed posuere, purus at pharetra
-      ullamcorper, mauris mi egestas urna, sit amet fermentum lorem purus vitae odio. Aenean vitae urna at arcu scelerisque dictum.
-      Phasellus euismod, mi ac sollicitudin facilisis, urna sapien accumsan lacus, id interdum nulla libero a ex. Quisque id
-      facilisis arcu, nec aliquet ex. Duis sed felis non mi pulvinar fermentum sit amet in leo.
+      After some digging, I realized the issue wasn’t actually my code but the way browsers handle ES modules. I had assumed I could just open the HTML file directly from 
+      File Explorer, but modern JavaScript requires running a local server for it to work properly. Once I tried Python’s built-in server, everything displayed fine. That 
+      was both frustrating and encouraging—frustrating because it wasn’t obvious, but encouraging because it showed me the code I had written was okay all along.
     </p>
     <p>
-      Suspendisse porta, velit ut tempor convallis, magna tortor fringilla est, non finibus leo ligula et nunc. Sed gravida, turpis
-      eu tincidunt porttitor, enim arcu dapibus tellus, sit amet aliquet nisl quam in justo. Curabitur sodales, eros sed congue
-      volutpat, nibh justo ultricies tortor, at dignissim nunc ipsum at felis. Integer aliquam congue neque, ut maximus massa
-      efficitur ac. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+      Another challenge was making sense of the different syntax styles. Some Esri samples still use the older <code>require()</code> approach, while others use ES modules 
+      with <code>await</code>. For someone new to JavaScript, that inconsistency is pretty confusing. Still, it pushed me to slow down, look more carefully at the 
+      documentation, and begin to understand how asynchronous functions and modules actually work.
     </p>
   </main>
   <footer class="footer">&copy; 2025 Ross Wygmans — Hosted on GitHub Pages</footer>
