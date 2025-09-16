@@ -4,7 +4,7 @@ const [Map, MapView, Graphic] = await $arcgis.import([
   "@arcgis/core/Graphic.js",
 ]);
 
-// Single source of truth for location
+// Missoula coordinates
 const MISSOULA = { latitude: 46.87585, longitude: -114.01232 };
 
 const map = new Map({
@@ -15,10 +15,10 @@ const view = new MapView({
   container: "viewDiv",
   map: map,
   zoom: 12,
-  center: [MISSOULA.longitude, MISSOULA.latitude], // longitude, latitude
+  center: [MISSOULA.longitude, MISSOULA.latitude], // [lon, lat]
 });
 
-// Marker pointing to Missoula using the same coordinates
+// Missoula marker
 const missoulaMarker = new Graphic({
   geometry: {
     type: "point",
