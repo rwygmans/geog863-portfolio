@@ -1,0 +1,25 @@
+:root { --gap: 12px; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, Arial, sans-serif;
+  color: #222;
+}
+
+header {
+  padding: var(--gap) calc(var(--gap) * 2);
+  background: #f7f7f7;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+main { padding: var(--gap); }
+
+.view {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
