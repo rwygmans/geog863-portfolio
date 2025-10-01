@@ -127,7 +127,7 @@ const view = new SceneView({
 
 await view.when();
 
-// Configure popup to dock in upper right corner
+// Configure popup 
 view.popup.dockEnabled = true;
 view.popup.dockOptions = {
   buttonEnabled: false,
