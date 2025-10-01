@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Lesson 6 – GEOG 863 Portfolio</title>
+  <!-- Esri CSS -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  <!-- My CSS -->
+  <link rel="stylesheet" href="main.css" />
+  <!-- Esri JS API -->
+  <script src="https://js.arcgis.com/4.33/"></script>
+  <!-- My JS -->
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  
+  <div class="reflection-container">
+    <div class="reflection-content">
+      <p><a href="../">&larr; Back to Portfolio</a></p>
+      <h2>Reflection</h2>
+      <p>
+        Lesson 6 provided a comprehensive introduction to layer visualization in the ArcGIS Maps SDK for JavaScript, covering symbol 
+        classes for 2D and 3D representations, different renderer types, visual variables, and popup configurations. Working with 3D 
+        symbols and the ExtrudeSymbol3DLayer was particularly interesting, as the ability to represent data through both color and height 
+        added a powerful dimension to the visualization. In my Florida county health rankings map, I used visual variables to show adult 
+        obesity rates through color and unemployment rates through extrusion height, allowing me to communicate two variables simultaneously.
+      </p>
+      <p>
+        The 3D viewpoint determination tool was a game-changer. In previous lessons, setting up the camera position involved considerable 
+        trial and error. Having a tool that lets you navigate to the desired view and simply copy the camera properties saved significant 
+        time and frustration.
+      </p>
+      <p>
+        Configuring popups was more straightforward than expected, though I initially wasn't sure where certain properties should be set. 
+        I learned that the PopupTemplate defines content and structure, while the view's popup properties control behavior like docking and 
+        positioning. Understanding this separation helped me organize my code better. One area I found somewhat confusing was the distinction 
+        between different renderer types and when to use each one. I used a SimpleRenderer with visual variables for this project, but I'd 
+        like to explore other renderer types more to fully understand their use cases.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
