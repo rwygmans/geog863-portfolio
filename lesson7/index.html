@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Lesson 7 - Hurricane Tracker</title>
+  <!-- Esri CSS -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  <!-- My CSS -->
+  <link rel="stylesheet" href="main.css" />
+  <!-- Esri JS API -->
+  <script src="https://js.arcgis.com/4.33/"></script>
+  <!-- My JS -->
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <div id="viewDiv"></div>
+  
+  <div class="reflection-container">
+    <div class="reflection-content">
+      <p><a href="../">&larr; Back to Portfolio</a></p>
+      <h2>Reflection</h2>
+      <p>
+        I built a simple hurricane viewer that asks for a year and draws IBTrACS track lines for that period. The map uses the
+        <strong>dark-gray-vector</strong> basemap and a single FeatureLayer for the tracks. I filter the layer with a
+        <strong>definitionExpression</strong> on the <strong>year</strong> field so only that year’s features appear. Tracks are shown as
+        dotted lines whose width and color change with Saffir–Simpson categories via a <strong>ClassBreaksRenderer</strong> on
+        <strong>USA_WIND</strong>. I went with a yellow‑orange‑red palette and progressively thicker strokes so the strongest segments
+        stand out without overwhelming the basemap.
+      </p>
+      <p>
+        Popups include storm name, year, maximum wind speed, basin, nature, and date using a fields‑based
+        <strong>PopupTemplate</strong>. After the layer loads, I run a quick <strong>Query</strong> with the same year filter to confirm that data
+        actually exists. If nothing comes back (or the request fails), the app nudges the user rather than leaving an empty map. The
+        flow is pretty straightforward: import modules with <strong>$arcgis.import</strong>, make the map and view, define the
+        renderer, add the layer with its popup and filter, and finally validate the results.
+      </p>
+      <p>
+        The trickiest parts were picking class breaks and stroke widths that read well at different zoom levels and user input error handling.
+        Validating the year and using numeric comparisons in the <strong>definitionExpression</strong> helped avoid odd cases. I
+        also tweaked the dotted <strong>SimpleLineSymbol</strong> so categories feel distinct but not noisy. I came away more comfortable with
+        <strong>ClassBreaksRenderer</strong>, <strong>FeatureLayer</strong> filtering, <strong>Query</strong> patterns, and <strong>PopupTemplate</strong>
+        fieldInfos. My main references were the Esri docs, API sandbox samples, and ColorBrewer for symbology.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,8 @@
+# Ignore all files under assets/docs
+assets/docs/**
+
+# OS-specific files
+Thumbs.db
+.DS_Store
+
+
