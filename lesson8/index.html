@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Lesson 8 - Hurricane Tracker</title>
+  
+  <script type="module" src="https://js.arcgis.com/calcite-components/3.2.1/calcite.esm.js"></script>
+  
+  <!-- Esri CSS -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  
+  <!-- My CSS -->
+  <link rel="stylesheet" href="main.css" />
+  
+  <!-- Esri JS API -->
+  <script src="https://js.arcgis.com/4.33/"></script>
+  <!-- ArcGIS Map Components -->
+  <script type="module" src="https://js.arcgis.com/4.33/map-components/"></script>
+  
+  <!-- My JS -->
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <div id="appContainer">
+    <div id="viewDiv">
+      <arcgis-legend position="bottom-left" legend-style="classic"></arcgis-legend>
+      <arcgis-home position="top-left"></arcgis-home>
+      <arcgis-basemap-toggle position="top-right"></arcgis-basemap-toggle>
+    </div>
+
+    <div id="controlPanel">
+      <div id="dateControls" class="esri-widget">
+        <calcite-block heading="Hurricane Tracker" description="Select date range for hurricane data" open>
+          <div class="date-controls-content">
+            <calcite-input-date-picker id="dateFrom" scale="s"></calcite-input-date-picker>
+            to
+            <calcite-input-date-picker id="dateTo" scale="s"></calcite-input-date-picker>
+            <calcite-button id="getHurricanesButton" width="full">Load Hurricanes</calcite-button>
+            <calcite-notice kind="info" icon="information" id="notice">
+              <div slot="message" id="hurricaneCount"></div>
+            </calcite-notice>
+          </div>
+        </calcite-block>
+      </div>
+
+      <div id="resultsPanel" class="esri-widget">
+        <calcite-panel heading="Hurricanes (click to view)">
+          <div id="listContainer">
+            <table id="hurricaneList" class="feature-list">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Date</th>
+                  <th>Wind (kt)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </calcite-panel>
+      </div>
+    </div>
+  </div>
+  
+  <div class="reflection-container">
+    <div class="reflection-content">
+      <p><a href="../">&larr; Back to Portfolio</a></p>
+      <h2>Reflection</h2>
+      <p>
+        This app extends my Lesson 7 hurricane viewer by replacing the year prompt with a date range
+        interface using <strong>Calcite</strong> components. Users now select custom start and end dates via
+        <strong>calcite-input-date-picker</strong> elements, click a <strong>calcite-button</strong> to query, and see
+        results displayed in both the map and a clickable sidebar table. The <strong>ClassBreaksRenderer</strong> and
+        <strong>definitionExpression</strong> logic remain similar, but now filter on <strong>Hurricane_Date</strong> rather
+        than year, and the app queries matching features twice: once for the count (via <strong>queryFeatureCount()</strong>)
+        and again to populate the sidebar list with names, dates, and wind speeds.
+      </p>
+      <p>
+        My approach combined the Core API (<strong>Map</strong>, <strong>MapView</strong>, <strong>FeatureLayer</strong>,
+        <strong>Query</strong>) with modern map components (<strong>arcgis-legend</strong>, <strong>arcgis-home</strong>,
+        <strong>arcgis-basemap-toggle</strong>) and Calcite UI elements. This hybrid setup gave me flexibility for complex
+        queries while simplifying the interface code. The sidebar uses <strong>createDocumentFragment()</strong> and event
+        listeners to make each row clickable, zooming to the hurricane track and opening its popup.
+      </p>
+      <p>
+        The most challenging aspect was understanding Esri's component architecture. Initially, I struggled with legend
+        configuration—specifically hiding the "USA_WIND" field title and the "Other" category. Through the Lesson 8 materials
+        (section 8.8.7) and experimentation, I learned that my hybrid approach required explicitly setting <strong>view</strong>
+        properties on components, unlike pure <strong>arcgis-map</strong> apps. CSS positioning for the date picker calendar
+        also proved tricky, requiring <strong>overflow: visible</strong> adjustments to prevent the results panel from covering
+        the dropdown. 
+      </p>
+    </div>
+  </div>
+</body>
+</html>
