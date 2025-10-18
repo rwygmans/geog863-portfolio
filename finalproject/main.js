@@ -1,18 +1,29 @@
 // Import required modules for OSM and graphics
-const [GeoJSONLayer, esriRequest, webMercatorUtils, Graphic] = await $arcgis.import([
+const [GeoJSONLayer, esriRequest, webMercatorUtils, Graphic, reactiveUtils] = await $arcgis.import([
   "@arcgis/core/layers/GeoJSONLayer.js",
   "@arcgis/core/request.js",
   "@arcgis/core/geometry/support/webMercatorUtils.js",
-  "@arcgis/core/Graphic.js"
+  "@arcgis/core/Graphic.js",
+  "@arcgis/core/core/reactiveUtils.js"
 ]);
 
 // Get the arcgis-map element and wait for it to be ready
 const mapEl = document.querySelector("arcgis-map");
 let mapView = null;
 
-// Wait for the map component to be ready
-await mapEl.arcgisViewReadyChange;
-mapView = mapEl.view;
+// Wait for the map component to be ready - proper way
+if (mapEl) {
+  await new Promise((resolve) => {
+    mapEl.addEventListener('arcgisViewReadyChange', (event) => {
+      console.log('arcgisViewReadyChange event:', event);
+      mapView = mapEl.view;
+      console.log('MapView initialized:', mapView);
+      resolve();
+    }, { once: true });
+  });
+} else {
+  console.error('arcgis-map element not found!');
+}
 
 // App configuration for view management
 const appConfig = {
@@ -54,8 +65,12 @@ async function handleMapClick(event) {
 }
 
 // Setup click handlers and component listeners
-console.log('MapView is ready');
-setupStateClickHandlers();
+if (mapView) {
+  console.log('MapView is ready, setting up click handlers');
+  setupStateClickHandlers();
+} else {
+  console.error('MapView not available, cannot setup click handlers');
+}
 
 // Listen for search results
 const searchEl = document.querySelector("arcgis-search");
@@ -63,15 +78,15 @@ if (searchEl) {
   searchEl.addEventListener('arcgisSelect', async (e) => {
     try {
       const geom = e.detail?.result?.feature?.geometry || e.detail?.result?.extent?.center;
-      if (!geom) return;
+          if (!geom) return;
       await mapView.goTo({ target: geom, zoom: Math.max(mapView.zoom, MIN_FETCH_ZOOM) });
-      const pt = geom.type === 'point' ? geom : mapView.center;
-      setSelectedPoint(pt);
-      const { state, county } = await deriveAdminForPoint(pt);
-      updateAdminUI(state, county);
+          const pt = geom.type === 'point' ? geom : mapView.center;
+          setSelectedPoint(pt);
+          const { state, county } = await deriveAdminForPoint(pt);
+          updateAdminUI(state, county);
       await loadOSMLayerForView();
-    } catch {}
-  });
+        } catch {}
+      });
 }
 
 // Listen for locate events
@@ -98,75 +113,32 @@ if (locateEl) {
     }
   });
   
-  // Auto-zoom to user location on initial load
-  // Use whenReady promise or wait for view property
-  (async () => {
-    try {
-      // Wait a bit longer for everything to initialize
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      if (locateEl && typeof locateEl.locate === 'function') {
-        console.log('Auto-locating to user position...');
-        await locateEl.locate();
-      } else {
-        console.log('Locate element or method not available');
-      }
-    } catch (e) {
-      console.log('Could not auto-locate on load:', e);
-    }
-  })();
 }
 
-// Fallback: if auto-locate did not happen, use browser Geolocation API
-setTimeout(async () => {
-  if (didAutoLocate) return;
-  if (!('geolocation' in navigator)) return;
-  try {
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 6000,
-        maximumAge: 0
-      });
-    });
-    const lon = pos.coords.longitude;
-    const lat = pos.coords.latitude;
-    const geoPoint = { type: 'point', x: lon, y: lat, spatialReference: { wkid: 4326 } };
-    const wmPoint = webMercatorUtils.geographicToWebMercator(geoPoint);
-    await mapView.goTo({ target: wmPoint, zoom: MIN_FETCH_ZOOM });
-    setSelectedPoint(wmPoint);
-    updateLocationStatus('Using current location');
-    didAutoLocate = true;
-    await loadOSMLayerForView();
-  } catch (e) {
-    console.log('Browser geolocation failed or was denied:', e);
-  }
-}, 2500);
-
 // Submit button
-const btnSubmit = document.getElementById('btnSubmit');
+      const btnSubmit = document.getElementById('btnSubmit');
 if (btnSubmit) {
   btnSubmit.addEventListener('click', () => {
-    try {
-      const typeEl = document.getElementById('issueType');
-      const descEl = document.getElementById('issueDesc');
-      const type = typeEl && ('value' in typeEl) ? typeEl.value : '';
-      const desc = descEl && ('value' in descEl) ? descEl.value : '';
-      const info = window.__derivedAdmin || {};
-      if (!selectedPoint) { alert('Please set a location first.'); return; }
-      const coords = webMercatorUtils.webMercatorToGeographic(selectedPoint);
-      console.log('Report submitted', {
-        type,
-        desc,
-        location: { x: coords.x, y: coords.y },
-        state: info.stateName || null,
-        stateFips: info.stateFips || null,
-        county: info.countyName || null
+        try {
+          const typeEl = document.getElementById('issueType');
+          const descEl = document.getElementById('issueDesc');
+          const type = typeEl && ('value' in typeEl) ? typeEl.value : '';
+          const desc = descEl && ('value' in descEl) ? descEl.value : '';
+          const info = window.__derivedAdmin || {};
+          if (!selectedPoint) { alert('Please set a location first.'); return; }
+          const coords = webMercatorUtils.webMercatorToGeographic(selectedPoint);
+          console.log('Report submitted', {
+            type,
+            desc,
+            location: { x: coords.x, y: coords.y },
+            state: info.stateName || null,
+            stateFips: info.stateFips || null,
+            county: info.countyName || null
+          });
+          alert('Report captured locally (console). Hook up backend to persist.');
+          isReportMode = false;
+        } catch {}
       });
-      alert('Report captured locally (console). Hook up backend to persist.');
-      isReportMode = false;
-    } catch {}
-  });
 }
 
 
@@ -309,12 +281,15 @@ function setupViewListeners() {
 
 // Refresh OSM data when user stops navigating (debounced)
 let refreshHandle;
-  appConfig.activeView.watch("stationary", (isStationary) => {
-  if (isStationary) {
-    clearTimeout(refreshHandle);
-    refreshHandle = setTimeout(loadOSMLayerForView, 500);
-  }
-});
+  reactiveUtils.watch(
+    () => appConfig.activeView.stationary,
+    (isStationary) => {
+      if (isStationary) {
+        clearTimeout(refreshHandle);
+        refreshHandle = setTimeout(loadOSMLayerForView, 500);
+      }
+    }
+  );
 }
 
 // Initialize with 2D view
@@ -339,7 +314,7 @@ function setSelectedPoint(point) {
 
 async function deriveAdminForPoint(point) {
   // State/county layers removed; return no admin info
-  return { state: null, county: null };
+    return { state: null, county: null };
 }
 
 function updateAdminUI(stateAttr, countyAttr) {
@@ -401,12 +376,36 @@ setTimeout(() => {
     });
   }
   
+  console.log('btnReport element:', btnReport);
   if (btnReport) {
-    btnReport.addEventListener('click', () => { 
-      console.log('Report button clicked');
+    console.log('Adding click listener to btnReport');
+    btnReport.addEventListener('click', (e) => { 
+      console.log('Report button clicked - direct listener');
+      e.preventDefault();
+      e.stopPropagation();
       showPanel(); 
-    });
+    }, { capture: true });
+  } else {
+    console.error('btnReport not found!');
   }
+  
+  // Fallback delegate: ensure clicking the Report button always opens the panel
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!t) return;
+    // Check if click is on or inside btnReport
+    if (t.id === 'btnReport' || (t.closest && t.closest('#btnReport'))) {
+      console.log('Report button clicked - delegated listener');
+      e.preventDefault();
+      e.stopPropagation();
+      const p = document.getElementById('controlPanel');
+      if (p) { 
+        p.hidden = false; 
+        isReportMode = true;
+        console.log('Panel opened via delegate');
+      }
+    }
+  }, { capture: true });
 
   // "Use Current Location" button
   const btnUseCurrentLocation = document.getElementById('btnUseCurrentLocation');
