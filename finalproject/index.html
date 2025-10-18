@@ -9,28 +9,72 @@
   <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
   <link rel="stylesheet" href="main.css" />
   <script src="https://js.arcgis.com/4.33/"></script>
+  <!-- ArcGIS Map Components -->
+  <script type="module" src="https://js.arcgis.com/4.33/map-components/"></script>
   <script type="module" src="main.js"></script>
 </head>
 <body>
   <div id="appContainer">
-    <div id="viewDiv"></div>
-    <div id="controlPanel" class="esri-widget">
-      <div class="panel-heading">Filters</div>
+    <arcgis-map item-id="7e2b9be8a9c94e45b7f87857d8d168d6" zoom="14">
+      <arcgis-search position="top-left"></arcgis-search>
+      <arcgis-locate position="top-left"></arcgis-locate>
+    </arcgis-map>
+    <div id="controlPanel" class="esri-widget" hidden>
+      <div class="panel-top">
+        <div class="panel-heading">Report issue</div>
+        <button id="btnHidePanel" class="close-btn" type="button" aria-label="Close">✕</button>
+      </div>
       <div class="form-group">
-        <calcite-label layout="default">
-          State
-          <calcite-select id="ddState" width="full" scale="m" appearance="outline"></calcite-select>
+        <calcite-label>
+          Issue type
+          <calcite-select id="issueType" width="full" scale="m">
+            <calcite-option value="obstruction">Obstruction on trail</calcite-option>
+            <calcite-option value="erosion">Erosion / washout</calcite-option>
+            <calcite-option value="signage">Signage problem</calcite-option>
+            <calcite-option value="hazard">Hazard</calcite-option>
+            <calcite-option value="other">Other</calcite-option>
+          </calcite-select>
         </calcite-label>
       </div>
       <div class="form-group">
-        <calcite-label layout="default">
-          County
-          <calcite-select id="ddCounty" width="full" scale="m" appearance="outline"></calcite-select>
+        <calcite-label>
+          Description
+          <calcite-text-area id="issueDesc" rows="3" placeholder="Briefly describe the issue"></calcite-text-area>
         </calcite-label>
+      </div>
+      <div class="form-group">
+        <calcite-label>Location</calcite-label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <calcite-button id="btnUseCurrentLocation" appearance="outline" width="auto" scale="s" icon-start="gps-on">
+            Current location
+          </calcite-button>
+          <calcite-button id="btnTapMap" appearance="outline" width="auto" scale="s" icon-start="pin">
+            Tap map
+          </calcite-button>
+        </div>
+        <div id="locationStatus" style="font-size:12px;color:#bdbdbd;margin-top:4px;">
+          <span id="locationText">No location set</span>
+        </div>
+        <div id="derivedAdmin" style="font-size:12px;color:#bdbdbd;margin-top:6px;display:none;">
+          <span id="derivedState">State: —</span> · <span id="derivedCounty">County: —</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <calcite-button id="btnSubmit" appearance="solid" width="full">Submit report</calcite-button>
       </div>
     </div>
+
+    
+
   </div>
   
+  <button id="btnReport" class="report-btn" aria-label="Report Issue">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 20h20L12 2z" fill="currentColor"/>
+      <path d="M12 17h.01M11 10h1v5h-1v-5z" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+
   <footer class="footer">&copy; 2025 Ross Wygmans — Hosted on GitHub Pages</footer>
 </body>
 </html>

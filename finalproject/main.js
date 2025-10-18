@@ -1,415 +1,174 @@
-// 2D MapView with OSM paths/tracks via Overpass
-const [Map, MapView, GeoJSONLayer, FeatureLayer, Basemap, Home, esriRequest, webMercatorUtils] = await $arcgis.import([
-  "@arcgis/core/Map.js",
-  "@arcgis/core/views/MapView.js",
+// Import required modules for OSM and graphics
+const [GeoJSONLayer, esriRequest, webMercatorUtils, Graphic] = await $arcgis.import([
   "@arcgis/core/layers/GeoJSONLayer.js",
-  "@arcgis/core/layers/FeatureLayer.js",
-  "@arcgis/core/Basemap.js",
-  "@arcgis/core/widgets/Home.js",
   "@arcgis/core/request.js",
-  "@arcgis/core/geometry/support/webMercatorUtils.js"
+  "@arcgis/core/geometry/support/webMercatorUtils.js",
+  "@arcgis/core/Graphic.js"
 ]);
 
-// Basemaps
-const INITIAL_BASEMAP_ID = "358ec1e175ea41c3bf5c68f0da11ae2b"; // Dark Gray Canvas (no labels)
-const COUNTY_BASEMAP_ID = "7e2b9be8a9c94e45b7f87857d8d168d6"; // County-level basemap with labels
-let initialBaseLayers = [];
-let initialReferenceLayers = [];
-let countyBaseLayers = [];
-let countyReferenceLayers = [];
+// Get the arcgis-map element and wait for it to be ready
+const mapEl = document.querySelector("arcgis-map");
+let mapView = null;
 
-// Map using initial basemap (no labels)
-const map2D = new Map({
-  basemap: new Basemap({ portalItem: { id: INITIAL_BASEMAP_ID } })
-});
+// Wait for the map component to be ready
+await mapEl.arcgisViewReadyChange;
+mapView = mapEl.view;
 
-// Create both views with shared container
-const container = "viewDiv";
-
-let mapView = new MapView({
-  container: container,
-  map: map2D,
-  center: [-98.5795, 39.8283], // Center of USA
-  zoom: 4 // USA-wide view
-});
-
-// App configuration for view management (2D only)
+// App configuration for view management
 const appConfig = {
   activeView: mapView,
-  mapView: mapView,
-  container: container
+  mapView: mapView
 };
 
-// States fill and outline (separate layers for fill control)
-const statesFillLayer = new FeatureLayer({
-  portalItem: {
-    id: "8c2d6d7df8fa4142b0a1211c8dd66903"
-  },
-  title: "US States (Fill)",
-  outFields: ["*"], // Get all fields to see what's available
-  blendMode: "screen",
-  popupEnabled: false,
-  popupTemplate: {
-    title: "{STATE_NAME}",
-    content: [
-      {
-        type: "fields",
-        fieldInfos: [
-          {
-            fieldName: "STATE_NAME",
-            label: "State"
-          }
-        ]
-      },
-      {
-        type: "text",
-        text: "Click to zoom to this state and view trails"
-      }
-    ]
-  },
-  renderer: {
-    type: "simple",
-    symbol: {
-      type: "simple-fill",
-      color: [255, 255, 255, 0.2], // semi-transparent fill
-      outline: { type: "simple-line", color: [0,0,0,0], width: 0 }
-    }
-  }
-});
+// (State and county layers removed)
 
-const statesOutlineLayer = new FeatureLayer({
-  portalItem: { id: "8c2d6d7df8fa4142b0a1211c8dd66903" },
-  title: "US States (Outline)",
-  outFields: ["*"],
-  popupEnabled: false,
-  popupTemplate: null, // no popups on outline
-  renderer: {
-    type: "simple",
-    symbol: {
-      type: "simple-fill",
-      color: [0, 0, 0, 0], // no fill
-      outline: { type: "simple-line", color: [0, 204, 255, 0.9], width: 1.5 }
-    }
-  }
-});
+let isReportMode = false;
+let isTapMapMode = false;
+let selectedPoint = null;
+let selectedPointGraphic = null;
+const MIN_FETCH_ZOOM = window.matchMedia("(pointer: coarse)").matches ? 14 : 13; // touch devices fetch later
+let didAutoLocate = false;
 
-// Counties (initially hidden); definitionExpression set by state
-const countiesLayer = new FeatureLayer({
-  portalItem: {
-    id: "3c164274a80748dda926a046525da610"
-  },
-  title: "Counties",
-  outFields: ["*"],
-  visible: false,
-  labelsVisible: true,
-  popupEnabled: false,
-  popupTemplate: {
-    title: "{NAME}",
-    content: [
-      {
-        type: "fields",
-        fieldInfos: [
-          { fieldName: "NAME", label: "County" },
-          { fieldName: "STATE_NAME", label: "State" }
-        ]
-      },
-      { type: "text", text: "Click to zoom to county" }
-    ]
-  },
-  renderer: {
-    type: "simple",
-    symbol: {
-      type: "simple-fill",
-      color: [255, 165, 0, 0.2], // match states fill opacity (0.2)
-      outline: {
-        type: "simple-line",
-        color: [255, 180, 0, 0.8],
-        width: 1
-      }
-    }
-  },
-  labelingInfo: [
-    {
-      labelPlacement: "always-horizontal",
-      labelExpressionInfo: { expression: "Upper(Replace(Replace(Replace($feature.NAME, ' County', ''), ' Parish', ''), ' Borough', ''))" },
-      deconflictionStrategy: "none",
-      symbol: {
-        type: "text",
-        color: [235, 235, 235, 0.8],
-        font: { family: "'Segoe UI Light', 'Roboto Light', 'Helvetica Neue', Arial", size: 8, weight: "normal", style: "normal" }
-      },
-      where: "NAME IS NOT NULL"
-    }
-  ]
-});
-
-// Add operational layers (fill below, outline above)
-map2D.add(statesFillLayer);
-map2D.add(countiesLayer);
-map2D.add(statesOutlineLayer);
-
-let selectedStateFips = null;
-// Setup click handler (county has priority over state when visible)
+// Setup click handler: when in tap-map mode, a tap sets the report location
 function setupStateClickHandlers() { mapView.on("click", (event) => handleMapClick(event)); }
 
 // Helpers
-function getQuotedStateFips(fips) {
-  const f = countiesLayer.fields.find(ff => (ff.name || '').toUpperCase() === 'STATE_FIPS');
-  const isString = f ? (f.type === 'string') : true;
-  return isString ? `'${fips}'` : `${fips}`;
-}
 
-function setCountyFilter(fips) {
-  countiesLayer.definitionExpression = `STATE_FIPS = ${getQuotedStateFips(fips)}`;
-}
 
-function applyCountyNoFill() {
-  const r = countiesLayer.renderer;
-  const symbol = r && r.symbol ? r.symbol : null;
-  if (symbol && symbol.type === 'simple-fill') {
-    countiesLayer.renderer = { type: 'simple', symbol: { type: 'simple-fill', color: [0,0,0,0], outline: symbol.outline } };
-  }
-}
-
-function toggleCountyBasemap(on) {
-  try {
-    initialBaseLayers.forEach((lyr) => { lyr.visible = !on; });
-    countyBaseLayers.forEach((lyr) => { lyr.visible = on; });
-    countyReferenceLayers.forEach((lyr) => { lyr.visible = on; });
-  } catch {}
-}
-
-// Ensure OSM load after navigating to geometry
-async function ensureTrailsVisibleForGeometry(geometry) {
-  try {
-    // Go to the geometry first
-    await mapView.goTo({ target: geometry, padding: 50 });
-    // Trigger OSM load immediately
-    await loadOSMLayerForView();
-  } catch {}
-}
-
-// Utility: wait until a layerView finishes updating (data applied)
-function waitForLayerViewToFinish(layerView) {
-  return new Promise((resolve) => {
-    if (!layerView) return resolve();
-    if (!layerView.updating) return resolve();
-    const handle = layerView.watch("updating", (val) => {
-      if (!val) {
-        handle.remove();
-        resolve();
-      }
-    });
-  });
-}
-
-// Click handling: county first (if visible), else state
 async function handleMapClick(event) {
   try {
-    const response = await mapView.hitTest(event);
-    // 1) County selection if layer visible
-    if (countiesLayer.visible) {
-      const countyHit = response.results.find(r => r.graphic && r.graphic.layer === countiesLayer);
-      if (countyHit) {
-        const countyName = countyHit.graphic.attributes.NAME || 'Selected County';
-        await ensureTrailsVisibleForGeometry(countyHit.graphic.geometry);
-        applyCountyNoFill();
-        toggleCountyBasemap(true);
-        // Sync county dropdown (Calcite select)
-        const ddCounty = document.getElementById('ddCounty');
-        if (ddCounty) {
-          const name = countyHit.graphic.attributes.NAME || '';
-          ddCounty.value = name;
-        }
-        return; // handled
-      }
+    if (isTapMapMode) {
+      setSelectedPoint(event.mapPoint);
+      const { state, county } = await deriveAdminForPoint(event.mapPoint);
+      updateAdminUI(state, county);
+      updateLocationStatus('Location set from map');
+      isTapMapMode = false;
+      const btnTapMap = document.getElementById('btnTapMap');
+      if (btnTapMap) btnTapMap.appearance = 'outline';
+      return;
     }
-
-    // 2) State selection
-    const stateHit = response.results.find(r => r.graphic && (r.graphic.layer === statesFillLayer || r.graphic.layer === statesOutlineLayer));
-    if (stateHit) {
-      const attributes = stateHit.graphic.attributes || {};
-      const stateName = attributes.STATE_NAME || attributes.NAME || attributes.STATE || attributes.STATE_NAME_1 || 'Selected State';
-      const stateFips = attributes.STATE_FIPS || attributes.STATEFP || attributes.STATE_FIPS_CODE || null;
-      // Zoom to the selected state
-      await mapView.goTo({ target: stateHit.graphic.geometry, padding: 50 });
-
-      // Enable and filter counties to this state by STATE_FIPS
-      countiesLayer.visible = false;
-      selectedStateFips = stateFips;
-      if (stateFips != null) setCountyFilter(stateFips); else countiesLayer.definitionExpression = null;
-
-      // Wait for the filtered counties to finish updating, then show
-      try {
-        const lv = await mapView.whenLayerView(countiesLayer);
-        await waitForLayerViewToFinish(lv);
-      } catch {}
-      countiesLayer.visible = true;
-
-      // Hide ALL state fills once a state is selected; keep only outlines
-      statesFillLayer.definitionExpression = null;
-      statesFillLayer.visible = false;
-
-      // Do not open a popup for state selection
-      // Sync state dropdown
-      const ddState = document.getElementById('ddState');
-      if (ddState && stateFips != null) {
-        ddState.value = stateFips;
-        populateCountiesDropdown(stateFips);
-      }
-    }
+    // When not in tap-map mode, ignore map taps
   } catch (error) {
-    console.error('Error handling state click:', error);
+    console.error('Error handling map click:', error);
   }
 }
 
-// Ensure view is ready
-mapView.when(() => {
-  console.log('MapView is ready');
-  setupStateClickHandlers();
-  // Add Home widget
-  const homeWidget = new Home({ view: mapView });
-  mapView.ui.add(homeWidget, "top-left");
-  // Prepare dual-basemaps: keep both loaded, toggle via visibility
-  (async () => {
-    try {
-      // Capture initial base and reference layers
-      if (map2D.basemap) {
-        if (map2D.basemap.baseLayers) {
-          initialBaseLayers = map2D.basemap.baseLayers.toArray();
-        }
-        if (map2D.basemap.referenceLayers) {
-          initialReferenceLayers = map2D.basemap.referenceLayers.toArray();
-          // Ensure initial labels are OFF
-          initialReferenceLayers.forEach((lyr) => { lyr.visible = false; });
-        }
-      }
-      // Load county basemap layers and add them hidden
-      const countyBm = new Basemap({ portalItem: { id: COUNTY_BASEMAP_ID } });
-      if (countyBm.loadAll) { await countyBm.loadAll(); }
-      // Add base layers
-      countyBm.baseLayers && countyBm.baseLayers.forEach((lyr) => {
-        lyr.visible = false;
-        countyBaseLayers.push(lyr);
-        map2D.basemap.baseLayers.add(lyr);
-      });
-      // Add reference layers (labels)
-      countyBm.referenceLayers && countyBm.referenceLayers.forEach((lyr) => {
-        lyr.visible = false; // off until county selected
-        countyReferenceLayers.push(lyr);
-        map2D.basemap.referenceLayers.add(lyr);
-      });
-    } catch (e) { /* no-op */ }
-  })();
+// Setup click handlers and component listeners
+console.log('MapView is ready');
+setupStateClickHandlers();
 
-  // Populate state dropdown
-  (async () => {
+// Listen for search results
+const searchEl = document.querySelector("arcgis-search");
+if (searchEl) {
+  searchEl.addEventListener('arcgisSelect', async (e) => {
     try {
-      await statesOutlineLayer.when();
-      const query = statesOutlineLayer.createQuery();
-      query.where = "1=1";
-      query.outFields = ["*"]; // be flexible across schema variations
-      query.returnGeometry = false;
-      const res = await statesOutlineLayer.queryFeatures(query);
-      const features = res.features || [];
-      // Build name/fips with robust field detection and dedupe
-      const opts = features.map(f => {
-        const a = f.attributes || {};
-        return {
-          name: a.STATE_NAME || a.NAME || a.STATE || "",
-          fips: a.STATE_FIPS ?? a.STATEFP ?? a.STATE_FIPS_CODE ?? null
-        };
-      }).filter(o => o.name);
-      opts.sort((a,b) => a.name.localeCompare(b.name));
-      const seen = new Set();
-      const unique = opts.filter(o => { if (seen.has(o.name)) return false; seen.add(o.name); return true; });
-      const ddState = document.getElementById('ddState');
-      if (ddState) {
-        ddState.innerHTML = '<calcite-option value="">Select a state…</calcite-option>' + unique.map(o => `<calcite-option value="${o.fips ?? ''}">${o.name}</calcite-option>`).join('');
-        ddState.addEventListener('calciteSelectChange', async (e) => {
-          const fips = e.target.value || null;
-          if (!fips) return;
-          // Find state feature
-          const q2 = statesOutlineLayer.createQuery();
-          const fField = statesOutlineLayer.fields.find(ff => (ff.name||'').toUpperCase()==='STATE_FIPS') ? 'STATE_FIPS' : (statesOutlineLayer.fields.find(ff => (ff.name||'').toUpperCase()==='STATEFP') ? 'STATEFP' : 'STATE_FIPS');
-          q2.where = `${fField} = '${fips}'`;
-          q2.outFields = ["*"]; q2.returnGeometry = true;
-          const r2 = await statesOutlineLayer.queryFeatures(q2);
-          const st = r2.features && r2.features[0];
-          if (st) {
-            // Simulate map click behavior for state
-            await mapView.goTo({ target: st.geometry, padding: 50 });
-            countiesLayer.visible = false;
-            setCountyFilter(fips);
-            const lv = await mapView.whenLayerView(countiesLayer); await waitForLayerViewToFinish(lv);
-            countiesLayer.visible = true;
-            statesFillLayer.visible = false;
-            // Populate counties dropdown for this state
-            populateCountiesDropdown(fips);
-          }
-        });
+      const geom = e.detail?.result?.feature?.geometry || e.detail?.result?.extent?.center;
+      if (!geom) return;
+      await mapView.goTo({ target: geom, zoom: Math.max(mapView.zoom, MIN_FETCH_ZOOM) });
+      const pt = geom.type === 'point' ? geom : mapView.center;
+      setSelectedPoint(pt);
+      const { state, county } = await deriveAdminForPoint(pt);
+      updateAdminUI(state, county);
+      await loadOSMLayerForView();
+    } catch {}
+  });
+}
+
+// Listen for locate events
+const locateEl = document.querySelector("arcgis-locate");
+if (locateEl) {
+  locateEl.addEventListener('arcgisLocate', async (e) => {
+    const pt = e.detail?.position || mapView.center;
+    if (pt) {
+      didAutoLocate = true;
+      if (mapView.zoom < MIN_FETCH_ZOOM) {
+        await mapView.goTo({ target: pt, zoom: MIN_FETCH_ZOOM });
+      } else {
+        await mapView.goTo({ target: pt });
       }
-    } catch (e) { console.error('State dropdown error', e); }
-  })();
-  // When Home is used to reset, show state fill again and hide counties
-  mapView.watch("viewpoint", () => {
-    // Heuristic: if zoomed out beyond state scale, reset layers
-    if (mapView.scale > 5000000) {
-      statesFillLayer.visible = true;
-      statesFillLayer.definitionExpression = null; // restore all fills
-      countiesLayer.visible = false;
-      countiesLayer.definitionExpression = null;
-      // Restore counties fill renderer to default when resetting
-      countiesLayer.renderer = {
-        type: 'simple',
-        symbol: {
-          type: 'simple-fill',
-          color: [255, 165, 0, 0.2],
-          outline: { type: 'simple-line', color: [255, 180, 0, 0.8], width: 1 }
-        }
-      };
-      // Toggle basemaps back: show initial base layers, hide county base + labels
-      try {
-        initialBaseLayers.forEach((lyr) => { lyr.visible = true; });
-        // Keep initial basemap labels OFF
-        initialReferenceLayers.forEach((lyr) => { lyr.visible = false; });
-        countyBaseLayers.forEach((lyr) => { lyr.visible = false; });
-        countyReferenceLayers.forEach((lyr) => { lyr.visible = false; });
-      } catch {}
+      // Only set point if triggered from "Use Current Location" button
+      if (window._useCurrentLocationTriggered) {
+        setSelectedPoint(pt);
+        const { state, county } = await deriveAdminForPoint(pt);
+        updateAdminUI(state, county);
+        updateLocationStatus('Using current location');
+        window._useCurrentLocationTriggered = false;
+      }
+      await loadOSMLayerForView();
     }
   });
-});
-
-// Populate counties dropdown filtered by state FIPS
-async function populateCountiesDropdown(stateFips) {
-  try {
-    const ddCounty = document.getElementById('ddCounty');
-    if (!ddCounty) return;
-    const val = getQuotedStateFips(stateFips);
-    const q = countiesLayer.createQuery();
-    q.where = `STATE_FIPS = ${val}`;
-    q.outFields = ["NAME", "STATE_FIPS"]; q.returnGeometry = false;
-    const res = await countiesLayer.queryFeatures(q);
-    const feats = res.features || [];
-    const items = feats.map(f => f.attributes.NAME).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-    ddCounty.innerHTML = '<calcite-option value="">Select a county…</calcite-option>' + items.map(n=>`<calcite-option value="${n}">${n}</calcite-option>`).join('');
-    ddCounty.selectedOption = null;
-    ddCounty.addEventListener('calciteSelectChange', async (e) => {
-      const name = e.target.value || '';
-      if (!name) return;
-      const q2 = countiesLayer.createQuery();
-      q2.where = `STATE_FIPS = ${val} AND NAME = '${name.replace(/'/g,"''")}'`;
-      q2.outFields=["*"]; q2.returnGeometry=true;
-      const r2 = await countiesLayer.queryFeatures(q2);
-      const ct = r2.features && r2.features[0];
-      if (ct) {
-        await ensureTrailsVisibleForGeometry(ct.geometry);
-        applyCountyNoFill();
-        toggleCountyBasemap(true);
+  
+  // Auto-zoom to user location on initial load
+  // Use whenReady promise or wait for view property
+  (async () => {
+    try {
+      // Wait a bit longer for everything to initialize
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (locateEl && typeof locateEl.locate === 'function') {
+        console.log('Auto-locating to user position...');
+        await locateEl.locate();
+      } else {
+        console.log('Locate element or method not available');
       }
-    });
-  } catch (e) { console.error('County dropdown error', e); }
+    } catch (e) {
+      console.log('Could not auto-locate on load:', e);
+    }
+  })();
 }
+
+// Fallback: if auto-locate did not happen, use browser Geolocation API
+setTimeout(async () => {
+  if (didAutoLocate) return;
+  if (!('geolocation' in navigator)) return;
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 6000,
+        maximumAge: 0
+      });
+    });
+    const lon = pos.coords.longitude;
+    const lat = pos.coords.latitude;
+    const geoPoint = { type: 'point', x: lon, y: lat, spatialReference: { wkid: 4326 } };
+    const wmPoint = webMercatorUtils.geographicToWebMercator(geoPoint);
+    await mapView.goTo({ target: wmPoint, zoom: MIN_FETCH_ZOOM });
+    setSelectedPoint(wmPoint);
+    updateLocationStatus('Using current location');
+    didAutoLocate = true;
+    await loadOSMLayerForView();
+  } catch (e) {
+    console.log('Browser geolocation failed or was denied:', e);
+  }
+}, 2500);
+
+// Submit button
+const btnSubmit = document.getElementById('btnSubmit');
+if (btnSubmit) {
+  btnSubmit.addEventListener('click', () => {
+    try {
+      const typeEl = document.getElementById('issueType');
+      const descEl = document.getElementById('issueDesc');
+      const type = typeEl && ('value' in typeEl) ? typeEl.value : '';
+      const desc = descEl && ('value' in descEl) ? descEl.value : '';
+      const info = window.__derivedAdmin || {};
+      if (!selectedPoint) { alert('Please set a location first.'); return; }
+      const coords = webMercatorUtils.webMercatorToGeographic(selectedPoint);
+      console.log('Report submitted', {
+        type,
+        desc,
+        location: { x: coords.x, y: coords.y },
+        state: info.stateName || null,
+        stateFips: info.stateFips || null,
+        county: info.countyName || null
+      });
+      alert('Report captured locally (console). Hook up backend to persist.');
+      isReportMode = false;
+    } catch {}
+  });
+}
+
 
 // Overpass API query to get OSM ways with highway=path|track within current view bbox
 async function fetchOSMGeoJSON(extent) {
@@ -462,7 +221,6 @@ async function fetchOSMGeoJSON(extent) {
 
 let osmLayer;
 let lastQueryKey;
-const MIN_FETCH_ZOOM = 13; // only fetch/draw when sufficiently zoomed in
 
 async function loadOSMLayerForView() {
   try {
@@ -561,6 +319,174 @@ let refreshHandle;
 
 // Initialize with 2D view
 setupViewListeners();
+
+function setSelectedPoint(point) {
+  selectedPoint = point;
+  if (!point) return;
+  if (!selectedPointGraphic) {
+    selectedPointGraphic = new Graphic({
+      geometry: point,
+      symbol: { type: 'simple-marker', color: [0, 122, 255, 1], size: 10, outline: { color: [255,255,255,1], width: 2 } }
+    });
+    mapView.graphics.add(selectedPointGraphic);
+  } else {
+    selectedPointGraphic.geometry = point;
+  }
+  // Hide location hint once a point is set
+  const notice = document.getElementById('locationNotice');
+  if (notice && point) { notice.removeAttribute('open'); }
+}
+
+async function deriveAdminForPoint(point) {
+  // State/county layers removed; return no admin info
+  return { state: null, county: null };
+}
+
+function updateAdminUI(stateAttr, countyAttr) {
+  const dState = document.getElementById('derivedState');
+  const dCounty = document.getElementById('derivedCounty');
+  const derivedAdmin = document.getElementById('derivedAdmin');
+  const stateName = stateAttr?.STATE_NAME || stateAttr?.NAME || '';
+  const stateFips = stateAttr?.STATE_FIPS ?? stateAttr?.STATEFP ?? null;
+  const countyName = countyAttr?.NAME || '';
+  if (dState) dState.textContent = `State: ${stateName || '—'}`;
+  if (dCounty) dCounty.textContent = `County: ${countyName || '—'}`;
+  if (derivedAdmin) derivedAdmin.style.display = (stateName || countyName) ? 'block' : 'none';
+  window.__derivedAdmin = { stateName, stateFips, countyName };
+}
+
+function updateLocationStatus(message) {
+  const locationText = document.getElementById('locationText');
+  if (locationText) {
+    locationText.textContent = message;
+    locationText.style.color = '#4caf50';
+  }
+}
+
+// Wait for DOM to be fully ready
+setTimeout(() => {
+  const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  const panel = document.getElementById('controlPanel');
+  const btnReport = document.getElementById('btnReport');
+  
+  // Hide panel by default on all devices; user must tap Report
+  if (panel) panel.hidden = true;
+  
+  const hidePanel = () => {
+    console.log('hidePanel called');
+    if (!panel) return;
+    panel.hidden = true;
+    panel.style.transform = '';
+    panel.style.opacity = '';
+    isReportMode = false;
+  };
+  
+  const showPanel = () => {
+    console.log('showPanel called');
+    if (!panel) return;
+    panel.hidden = false;
+    isReportMode = true;
+  };
+  
+  // Use event delegation on the panel itself for the close button
+  if (panel) {
+    panel.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target.id === 'btnHidePanel' || target.closest('#btnHidePanel')) {
+        console.log('Close button clicked via delegation');
+        e.preventDefault();
+        e.stopPropagation();
+        hidePanel();
+      }
+    });
+  }
+  
+  if (btnReport) {
+    btnReport.addEventListener('click', () => { 
+      console.log('Report button clicked');
+      showPanel(); 
+    });
+  }
+
+  // "Use Current Location" button
+  const btnUseCurrentLocation = document.getElementById('btnUseCurrentLocation');
+  if (btnUseCurrentLocation) {
+    btnUseCurrentLocation.addEventListener('click', () => {
+      console.log('Use current location clicked');
+      window._useCurrentLocationTriggered = true;
+      const locateEl2 = document.querySelector("arcgis-locate");
+      if (locateEl2) {
+        locateEl2.locate();
+      }
+    });
+  }
+
+  // "Tap Map" button
+  const btnTapMap = document.getElementById('btnTapMap');
+  if (btnTapMap) {
+    btnTapMap.addEventListener('click', () => {
+      console.log('Tap map clicked');
+      isTapMapMode = !isTapMapMode;
+      if (isTapMapMode) {
+        btnTapMap.appearance = 'solid';
+        updateLocationStatus('Tap the map to set location');
+        document.getElementById('locationText').style.color = '#ffc107';
+      } else {
+        btnTapMap.appearance = 'outline';
+        updateLocationStatus('No location set');
+        document.getElementById('locationText').style.color = '#bdbdbd';
+      }
+    });
+  }
+
+  // Drag-to-dismiss: drag the panel header downward to close
+  if (isMobile && panel) {
+    const header = panel.querySelector('.panel-top');
+    let startY = 0;
+    let currentY = 0;
+    let dragging = false;
+    const threshold = 60; // px to trigger dismiss
+
+    const onTouchStart = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      dragging = true;
+      startY = e.touches[0].clientY;
+      currentY = startY;
+      panel.style.transition = 'none';
+    };
+    
+    const onTouchMove = (e) => {
+      if (!dragging) return;
+      currentY = e.touches[0].clientY;
+      const dy = Math.max(0, currentY - startY); // only allow downward drag
+      panel.style.transform = `translateY(${dy}px)`;
+      panel.style.opacity = String(Math.max(0.5, 1 - dy / 250));
+    };
+    
+    const onTouchEnd = () => {
+      if (!dragging) return;
+      dragging = false;
+      const dy = Math.max(0, currentY - startY);
+      panel.style.transition = '';
+      
+      if (dy > threshold) {
+        // Dismiss
+        hidePanel();
+      } else {
+        // Snap back
+        panel.style.transform = 'translateY(0)';
+        panel.style.opacity = '';
+      }
+    };
+    
+    if (header) {
+      header.addEventListener('touchstart', onTouchStart, { passive: true });
+      header.addEventListener('touchmove', onTouchMove, { passive: true });
+      header.addEventListener('touchend', onTouchEnd, { passive: true });
+      header.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    }
+  }
+}, 500);
 
 
 
