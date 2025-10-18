@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Final Project – GEOG 863 Portfolio</title>
+  <script type="module" src="https://js.arcgis.com/calcite-components/3.2.1/calcite.esm.js"></script>
+  <link rel="stylesheet" href="../assets/css/base.css" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
+  <link rel="stylesheet" href="main.css" />
+  <script src="https://js.arcgis.com/4.33/"></script>
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <div id="appContainer">
+    <div id="viewDiv"></div>
+    <div id="controlPanel" class="esri-widget">
+      <div class="panel-heading">Filters</div>
+      <div class="form-group">
+        <calcite-label layout="default">
+          State
+          <calcite-select id="ddState" width="full" scale="m" appearance="outline"></calcite-select>
+        </calcite-label>
+      </div>
+      <div class="form-group">
+        <calcite-label layout="default">
+          County
+          <calcite-select id="ddCounty" width="full" scale="m" appearance="outline"></calcite-select>
+        </calcite-label>
+      </div>
+    </div>
+  </div>
+  
+  <footer class="footer">&copy; 2025 Ross Wygmans — Hosted on GitHub Pages</footer>
+</body>
+</html>
+
+
