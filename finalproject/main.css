@@ -23,6 +23,40 @@ arcgis-map {
   width: 100vw;
 }
 
+/* Loading overlay */
+#loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  transition: opacity 300ms ease-out;
+}
+
+#loadingOverlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top: 3px solid #0079c1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 #controlPanel {
   position: absolute;
   top: 10px;
@@ -34,7 +68,7 @@ arcgis-map {
   color: #eaeaea;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  padding: 12px 14px;
+  padding: 0;
 }
 
 #controlPanel .panel-top {
@@ -42,6 +76,14 @@ arcgis-map {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  position: sticky;
+  top: 0;
+  background: rgba(18,18,18,0.92);
+  z-index: 10;
+  padding: 12px 14px;
+  margin: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px 8px 0 0;
 }
 
 #controlPanel .close-btn {
@@ -64,11 +106,16 @@ arcgis-map {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 #controlPanel .form-group {
   margin-bottom: 12px;
+  padding: 0 14px;
+}
+
+#controlPanel .form-group:first-of-type {
+  padding-top: 12px;
 }
 
 #controlPanel label {
@@ -91,18 +138,19 @@ arcgis-map {
   border: none;
   background: #ffc107;
   color: #fff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  padding: 16px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  padding: 12px 20px;
+  height: 48px;
+  border-radius: 24px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(255, 193, 7, 0.5);
   transition: all 180ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .report-btn:hover {
@@ -117,6 +165,13 @@ arcgis-map {
 
 .report-btn svg {
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  flex-shrink: 0;
+}
+
+.report-btn .btn-text {
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 /* Make search component more compact on mobile */
@@ -127,6 +182,23 @@ arcgis-search {
 @media (max-width: 768px) {
   arcgis-search {
     max-width: 200px;
+  }
+  
+  /* Mobile report button */
+  .report-btn {
+    font-size: 13px;
+    padding: 10px 16px;
+    height: 44px;
+    border-radius: 22px;
+  }
+  
+  .report-btn .btn-text {
+    font-size: 13px;
+  }
+  
+  .report-btn svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -142,15 +214,97 @@ arcgis-search {
     max-height: 45vh;
     margin: 0;
     overflow: auto;
-    transition: transform 160ms ease-out, opacity 160ms ease-out;
+    transition: transform 300ms ease-out, opacity 300ms ease-out;
     will-change: transform;
-    transform: translateY(0);
+    transform: translateY(100%); /* Start off-screen below */
     z-index: 1000;
+  }
+
+  /* When panel is visible, slide it up */
+  #controlPanel:not([hidden]) {
+    transform: translateY(0);
+  }
+
+  /* When panel is hidden, keep it off-screen */
+  #controlPanel[hidden] {
+    transform: translateY(100%);
   }
 
   #controlPanel .form-group calcite-select,
   #controlPanel .form-group calcite-text-area,
-  #controlPanel .form-group calcite-button {
+  #controlPanel .form-group calcite-button,
+  #controlPanel .form-group calcite-input {
+    --calcite-ui-control-size: 44px;
+  }
+
+  /* Ensure sticky header works on mobile */
+  #controlPanel .panel-top {
+    position: sticky;
+    top: 0;
+    background: rgba(18,18,18,0.95);
+    backdrop-filter: blur(8px);
+    border-radius: 8px 8px 0 0;
+    margin: 0;
+  }
+}
+
+/* Enhanced form styling */
+#controlPanel .form-group calcite-input {
+  --calcite-ui-control-size: 44px;
+}
+
+/* Loading state for submit button */
+#btnSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   PHOTO ATTACHMENT STYLING
+   ============================================================================ */
+
+#photoContainer {
+  position: relative;
+}
+
+#photoPreview {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#photoImage {
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+#btnSelectPhoto {
+  transition: all 0.2s ease;
+}
+
+#btnSelectPhoto:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#btnRemovePhoto {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+#btnRemovePhoto:hover {
+  background-color: rgba(244, 67, 54, 0.2);
+}
+
+/* Mobile photo styling */
+@media (max-width: 768px) {
+  #photoImage {
+    max-height: 150px;
+  }
+  
+  #btnSelectPhoto {
     --calcite-ui-control-size: 44px;
   }
 }
