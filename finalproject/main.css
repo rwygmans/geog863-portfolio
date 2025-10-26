@@ -6,6 +6,7 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 arcgis-map {
@@ -134,6 +135,7 @@ calcite-shell {
 /* Ensure popup appears above report button */
 .esri-popup {
   z-index: 1002 !important;
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 /* Hide report button on mobile when popup or form panel is visible */
@@ -206,6 +208,11 @@ arcgis-search {
 @media (max-width: 768px) {
   arcgis-search {
     max-width: 200px;
+  }
+  
+  /* Position basemap toggle higher to avoid system nav bar */
+  arcgis-basemap-toggle {
+    bottom: calc(env(safe-area-inset-bottom) + 8px) !important;
   }
   
   /* Mobile report button */
