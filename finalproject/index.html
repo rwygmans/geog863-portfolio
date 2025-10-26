@@ -6,7 +6,7 @@
   <title>Final Project – GEOG 863 Portfolio</title>
   <script type="module" src="https://js.arcgis.com/calcite-components/3.2.1/calcite.esm.js"></script>
   <link rel="stylesheet" href="../assets/css/base.css" />
-  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/dark/main.css" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.33/esri/themes/light/main.css" />
   <link rel="stylesheet" href="main.css" />
   <script src="https://js.arcgis.com/4.33/"></script>
   <!-- ArcGIS Map Components -->
@@ -14,14 +14,40 @@
   <script type="module" src="main.js"></script>
 </head>
 <body>
-  <div id="appContainer">
+  <calcite-shell content-behind>
     <div id="loadingOverlay">
       <div class="loading-spinner"></div>
     </div>
-    <arcgis-map item-id="7e2b9be8a9c94e45b7f87857d8d168d6" center="-98.5795, 39.8283" zoom="4">
+    <arcgis-map item-id="7e2b9be8a9c94e45b7f87857d8d168d6" center="-98.5795, 39.8283" zoom="4" basemap="osm">
       <arcgis-search position="top-left"></arcgis-search>
       <arcgis-locate position="top-left"></arcgis-locate>
+      <arcgis-basemap-toggle position="bottom-left"></arcgis-basemap-toggle>
     </arcgis-map>
+    <!-- Splash Screen / Instructions Modal -->
+    <div id="splashScreen" class="splash-overlay hidden" role="dialog" aria-labelledby="splashTitle" aria-modal="true">
+      <div class="splash-content">
+        <h2 id="splashTitle">Welcome to Trail Issue Reporter</h2>
+        <p class="splash-sub">Help keep trails safe and enjoyable by reporting maintenance issues.</p>
+
+        <div class="instructions">
+          <h3>How it works</h3>
+          <ol>
+            <li><strong>Open the form</strong>: Tap the <em>Report Issue</em> button at the bottom.</li>
+            <li><strong>Set location</strong>: Use <em>Current location</em> or <em>Tap map</em> to drop a pin.</li>
+            <li><strong>Describe the issue</strong>: Choose a type, add a short description, and pick a severity.</li>
+            <li><strong>Add a photo (optional)</strong>: A picture helps staff assess and prioritize.</li>
+            <li><strong>Submit</strong>: Your report appears on the map and is shared with maintainers.</li>
+          </ol>
+          <p class="tip">💡 Tip: Use the layers button to toggle report visibility. You can also search places and switch basemaps (bottom-left).</p>
+          <p class="note">📱 This app is optimized for mobile devices but works on desktop browsers too.</p>
+        </div>
+
+        <div class="splash-actions">
+          <label class="splash-checkbox"><input id="dontShowAgain" type="checkbox"> Don't show this again</label>
+          <button id="closeSplashBtn" class="splash-close-btn" type="button">Got it</button>
+        </div>
+      </div>
+    </div>
     <div id="controlPanel" class="esri-widget" hidden>
       <div class="panel-top">
         <div class="panel-heading">Report issue</div>
@@ -77,7 +103,7 @@
               Select Photo
             </calcite-button>
             <div id="photoPreview" style="display: none; margin-top: 8px;">
-              <img id="photoImage" style="max-width: 100%; max-height: 200px; border-radius: 4px; border: 1px solid #404040;">
+              <img id="photoImage" style="max-width: 100%; max-height: 200px; border-radius: 4px; border: 1px solid #d0d0d0;">
               <div style="margin-top: 4px;">
                 <calcite-button id="btnRemovePhoto" appearance="outline" scale="s" icon-start="trash">
                   Remove Photo
@@ -97,10 +123,10 @@
             Tap map
           </calcite-button>
         </div>
-        <div id="locationStatus" style="font-size:12px;color:#bdbdbd;margin-top:4px;">
+        <div id="locationStatus" style="font-size:12px;color:#696969;margin-top:4px;">
           <span id="locationText">No location set</span>
         </div>
-        <div id="derivedAdmin" style="font-size:12px;color:#bdbdbd;margin-top:6px;display:none;">
+        <div id="derivedAdmin" style="font-size:12px;color:#696969;margin-top:6px;display:none;">
           <span id="derivedState">State: —</span> · <span id="derivedCounty">County: —</span>
         </div>
       </div>
@@ -108,10 +134,7 @@
         <calcite-button id="btnSubmit" appearance="solid" width="full">Submit report</calcite-button>
       </div>
     </div>
-
-    
-
-  </div>
+  </calcite-shell>
   
   <button id="btnReport" class="report-btn" aria-label="Report Issue">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -124,5 +147,3 @@
   <footer class="footer">&copy; 2025 Ross Wygmans — Hosted on GitHub Pages</footer>
 </body>
 </html>
-
-

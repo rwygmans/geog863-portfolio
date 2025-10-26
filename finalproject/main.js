@@ -1,14 +1,8 @@
-// ============================================================================
-// IMPORTS AND INITIALIZATION
-// ============================================================================
+// === IMPORTS & SETUP ===
 
 // Import required modules
-const [GeoJSONLayer, esriRequest, webMercatorUtils, Graphic, reactiveUtils, FeatureLayer, LayerList, Expand] = await $arcgis.import([
-  "@arcgis/core/layers/GeoJSONLayer.js",
-  "@arcgis/core/request.js",
-  "@arcgis/core/geometry/support/webMercatorUtils.js",
+const [Graphic, FeatureLayer, LayerList, Expand] = await $arcgis.import([
   "@arcgis/core/Graphic.js",
-  "@arcgis/core/core/reactiveUtils.js",
   "@arcgis/core/layers/FeatureLayer.js",
   "@arcgis/core/widgets/LayerList.js",
   "@arcgis/core/widgets/Expand.js"
@@ -20,13 +14,7 @@ let isReportMode = false;
 let isTapMapMode = false;
 let selectedPoint = null;
 let selectedPointGraphic = null;
-let osmLayer = null;
-let lastQueryKey = null;
-let currentBlobUrl = null;
 let didAutoLocate = false;
-
-// Constants
-const MIN_FETCH_ZOOM = window.matchMedia("(pointer: coarse)").matches ? 14 : 13;
 const COUNTIES_SERVICE_URL = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Counties_Generalized_Boundaries/FeatureServer/0";
 const REPORTS_LAYER_URL = "https://services9.arcgis.com/6EuFgO4fLTqfNOhu/arcgis/rest/services/Trail_Issue_Reports/FeatureServer/0";
 
@@ -36,11 +24,25 @@ if (mapEl) {
   await new Promise((resolve) => {
     mapEl.addEventListener('arcgisViewReadyChange', (event) => {
       mapView = mapEl.view;
-      if (mapView?.popup) {
-        mapView.popup.autoOpenEnabled = false;
-      }
       resolve();
     }, { once: true });
+  });
+  
+  // Wire up basemap toggle and configure popup widget
+  mapView.when(() => {
+    const basemapToggleEl = document.querySelector("arcgis-basemap-toggle");
+    if (basemapToggleEl) {
+      basemapToggleEl.view = mapView;
+      basemapToggleEl.nextBasemap = "satellite";
+    }
+    
+    // Configure popup widget visibleElements
+    if (mapView.popup) {
+      mapView.popup.visibleElements = {
+        actionBar: false,
+        collapseButton: false
+      };
+    }
   });
   
   // Auto-trigger locate
@@ -58,6 +60,14 @@ if (mapEl) {
         loadingOverlay.classList.add('hidden');
         setTimeout(() => loadingOverlay.remove(), 300);
       }
+      // Show splash after loading overlay clears (unless user opted out)
+      const splash = document.getElementById('splashScreen');
+      const hasOptedOut = !!localStorage.getItem('hasSeenTrailSplash');
+      if (splash && !hasOptedOut) {
+        setTimeout(() => {
+          splash.classList.remove('hidden');
+        }, 400);
+      }
     }
   }, 1000);
 } else {
@@ -67,9 +77,7 @@ if (mapEl) {
 // App configuration
 const appConfig = { activeView: mapView, mapView };
 
-// ============================================================================
-// LAYER CONFIGURATION
-// ============================================================================
+// === REPORTS LAYER ===
 
 // Reports layer configuration
 const reportsLayer = new FeatureLayer({
@@ -93,16 +101,50 @@ const reportsLayer = new FeatureLayer({
     ]
   },
   popupTemplate: {
-    title: "{issue_type} - {created_date}",
-    content: [{ type: "fields", fieldInfos: [
-      { fieldName: "issue_type", label: "Issue Type" },
-      { fieldName: "description", label: "Description" },
-      { fieldName: "severity", label: "Severity" },
-      { fieldName: "status", label: "Status" },
-      { fieldName: "reporter_name", label: "Reporter" },
-      { fieldName: "state", label: "State" },
-      { fieldName: "county", label: "County" }
-    ]}]
+    title: "🚧 Trail Issue Report",
+    content: [
+      {
+        type: "text",
+        text: `
+          <div style="font-family: 'Avenir Next', Avenir, sans-serif;">
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+              <h3 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 16px;">{issue_type}</h3>
+              <p style="margin: 0; color: #5a6c7d; line-height: 1.5;">{description}</p>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: {expression/severity-color}; color: white;">
+                {severity} severity
+              </span>
+              <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: #6c757d; color: white;">
+                {status}
+              </span>
+            </div>
+          </div>
+        `
+      },
+      {
+        type: "fields",
+        fieldInfos: [
+          { fieldName: "reporter_name", label: "👤 Reported by" },
+          { fieldName: "state", label: "📍 State" },
+          { fieldName: "county", label: "📍 County" },
+          { fieldName: "created_date", label: "📅 Reported", format: { dateFormat: "short-date-short-time" } }
+        ]
+      }
+    ],
+    expressionInfos: [{
+      name: "severity-color",
+      title: "Severity Color",
+      expression: `
+        var sev = $feature.severity;
+        if (sev == "critical") return "#dc3545";
+        if (sev == "high") return "#ff9800";
+        if (sev == "medium") return "#ffc107";
+        if (sev == "low") return "#4caf50";
+        return "#6c757d";
+      `
+    }]
   }
 });
 
@@ -114,11 +156,10 @@ if (mapView) {
       mapView.map.reorder(reportsLayer, mapView.map.layers.length - 1);
     }
   });
+  
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
+// === UTILITY FUNCTIONS ===
 
 // Error handling
 function handleFeatureLayerError(error) {
@@ -146,11 +187,13 @@ function setSelectedPoint(point) {
     selectedPointGraphic = new Graphic({
       geometry: point,
       symbol: { 
-        type: 'simple-marker', 
-        color: [255, 0, 0, 0.8],
-        size: 16,
-        style: 'cross',
-        outline: { color: [255, 0, 0, 0.8, 1], width: 3 }
+        type: 'simple-marker',
+        style: 'path',
+        path: 'M0,-20 C-5,-20 -10,-15 -10,-10 C-10,-5 0,0 0,10 C0,0 10,-5 10,-10 C10,-15 5,-20 0,-20 Z',
+        color: [255, 50, 50, 0.9],
+        size: 24,
+        outline: { color: [255, 255, 255, 1], width: 2 },
+        yoffset: 10
       }
     });
     mapView.graphics.add(selectedPointGraphic);
@@ -326,9 +369,7 @@ function showPanel() {
   isReportMode = true;
 }
 
-// ============================================================================
-// EVENT HANDLERS
-// ============================================================================
+// === EVENT HANDLERS ===
 
 // Map click handler
 async function handleMapClick(event) {
@@ -349,6 +390,15 @@ if (mapView) {
   mapView.on("click", handleMapClick);
 }
 
+// Helper to close popup
+function closePopup() {
+  const popup = mapView?.popup;
+  if (popup) {
+    popup.visible = false;
+    if (typeof popup.close === 'function') popup.close();
+  }
+}
+
 // Search component setup
 const searchEl = document.querySelector("arcgis-search");
 if (searchEl) {
@@ -366,31 +416,22 @@ if (searchEl) {
 
   // Close popups on search complete
   searchEl.addEventListener('arcgisSearchComplete', () => {
-    const popup = mapView?.popup;
-    if (popup) {
-      popup.visible = false;
-      if (typeof popup.close === 'function') popup.close();
-    }
+    closePopup();
   });
 
   // Handle search results
   searchEl.addEventListener('arcgisSelectResult', async (e) => {
     try {
-      const popup = mapView?.popup;
-      if (popup) {
-        popup.visible = false;
-        if (typeof popup.close === 'function') popup.close();
-      }
+      closePopup();
       const result = e.detail?.result;
       const geom = result?.feature?.geometry || result?.extent?.center;
       if (!geom) return;
 
-      await mapView.goTo({ target: geom, zoom: Math.max(mapView.zoom, MIN_FETCH_ZOOM) });
+      await mapView.goTo({ target: geom, zoom: Math.max(mapView.zoom, 13) });
       const pt = geom.type === 'point' ? geom : mapView.center;
       setSelectedPoint(pt);
       const { state, county } = await deriveAdminForPoint(pt);
       updateAdminUI({ STATE_NAME: state }, { NAME: county });
-      await loadOSMLayerForView();
     } catch (error) {
       console.error('Error handling search result:', error);
     }
@@ -404,8 +445,8 @@ if (locateEl) {
     const pt = e.detail?.position || mapView.center;
     if (pt) {
       didAutoLocate = true;
-      if (mapView.zoom < MIN_FETCH_ZOOM) {
-        await mapView.goTo({ target: pt, zoom: MIN_FETCH_ZOOM });
+      if (mapView.zoom < 13) {
+        await mapView.goTo({ target: pt, zoom: 13 });
       } else {
         await mapView.goTo({ target: pt });
       }
@@ -417,17 +458,14 @@ if (locateEl) {
         updateLocationStatus('Using current location');
         window._useCurrentLocationTriggered = false;
       }
-      await loadOSMLayerForView();
     }
   });
 }
 
-// ============================================================================
-// FORM SUBMISSION
-// ============================================================================
+// === FORM SUBMISSION ===
 
 // Submit button handler
-      const btnSubmit = document.getElementById('btnSubmit');
+const btnSubmit = document.getElementById('btnSubmit');
 if (btnSubmit) {
   btnSubmit.addEventListener('click', async () => {
     try {
@@ -441,7 +479,7 @@ if (btnSubmit) {
         photoFile: document.getElementById('photoInput')?.files[0] || null
       };
       
-          const info = window.__derivedAdmin || {};
+      const info = window.__derivedAdmin || {};
       
       // Validation
       if (!selectedPoint) {
@@ -454,7 +492,7 @@ if (btnSubmit) {
         return;
       }
       
-      // Create feature for submission
+      // Create feature for submission (without photo data)
       const reportFeature = {
         geometry: selectedPoint,
         attributes: {
@@ -464,7 +502,7 @@ if (btnSubmit) {
           status: 'new',
           reporter_name: formData.reporterName || null,
           reporter_email: formData.reporterEmail || null,
-            state: info.stateName || null,
+          state: info.stateName || null,
           county: info.countyName || null,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString()
@@ -481,16 +519,39 @@ if (btnSubmit) {
       });
       
       if (result.addFeatureResults?.length > 0) {
-        alert('Report submitted successfully! Thank you for helping maintain the trails.');
+        const featureId = result.addFeatureResults[0].objectId;
         
-        // Clear form
-        document.getElementById('issueType').value = '';
-        document.getElementById('issueDesc').value = '';
-        document.getElementById('severity').value = 'medium';
-        document.getElementById('reporterName').value = '';
-        document.getElementById('reporterEmail').value = '';
-        setSelectedPoint(null);
-        updateLocationStatus('No location set');
+        // Add photo attachment if provided
+        if (formData.photoFile) {
+          try {
+            console.log('Adding photo attachment...');
+            
+            // Use REST API directly (this method works reliably)
+            const attachmentFormData = new FormData();
+            attachmentFormData.append('attachment', formData.photoFile);
+            attachmentFormData.append('f', 'json');
+            
+            const attachmentUrl = `${REPORTS_LAYER_URL}/${featureId}/addAttachment`;
+            
+            const response = await fetch(attachmentUrl, {
+              method: 'POST',
+              body: attachmentFormData
+            });
+            
+            const result = await response.json();
+            
+            if (result.addAttachmentResult && result.addAttachmentResult.success) {
+              console.log('Photo attachment added successfully!');
+            } else {
+              throw new Error('Attachment failed: ' + JSON.stringify(result));
+            }
+          } catch (attachmentError) {
+            console.error('Error adding photo attachment:', attachmentError);
+            alert('Report submitted successfully, but there was an issue with the photo attachment.');
+          }
+        }
+        
+        alert('Report submitted successfully! Thank you for helping maintain the trails.');
         hidePanel();
       } else {
         throw new Error('Failed to submit report');
@@ -508,198 +569,7 @@ if (btnSubmit) {
 }
 
 
-// ============================================================================
-// OSM LAYER MANAGEMENT
-// ============================================================================
-
-// Fetch OSM data from Overpass API
-async function fetchOSMGeoJSON(extent) {
-  const geoExtent = extent.spatialReference?.isWGS84
-    ? extent
-    : webMercatorUtils.webMercatorToGeographic(extent);
-    
-  const { xmin: minLon, ymin: minLat, xmax: maxLon, ymax: maxLat } = geoExtent;
-  const query = `[out:json][timeout:25];
-    (
-      way["highway"="path"](${minLat},${minLon},${maxLat},${maxLon});
-      way["highway"="footway"]["footway"!="sidewalk"]["footway"!="crossing"]["footway"!="traffic_island"](${minLat},${minLon},${maxLat},${maxLon});
-    );
-    out geom;`;
-
-  const response = await esriRequest("https://overpass-api.de/api/interpreter", {
-    method: "post",
-    responseType: "json",
-    timeout: 30000,
-    query: { data: query }
-  });
-
-  const elements = response.data.elements || [];
-  const features = elements
-    .filter(e => e.type === "way" && Array.isArray(e.geometry) && e.geometry.length >= 2)
-    .map(e => ({
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: e.geometry.map(pt => [pt.lon, pt.lat])
-      },
-      properties: {
-        id: e.id,
-        highway: e.tags?.highway || null,
-        name: e.tags?.name || null,
-        surface: e.tags?.surface || null,
-        footway: e.tags?.footway || null
-      }
-    }))
-    .filter(f => f.geometry.coordinates.length >= 2);
-
-  return { type: "FeatureCollection", features };
-}
-
-// Load OSM layer for current view
-async function loadOSMLayerForView() {
-  try {
-    const viewExtent = appConfig.activeView.extent;
-    if (!viewExtent) return;
-    
-    // Skip fetching when zoomed out for performance
-    if (appConfig.activeView.zoom < MIN_FETCH_ZOOM) {
-      if (osmLayer) {
-        appConfig.activeView.map.remove(osmLayer);
-        osmLayer = null;
-      }
-      if (currentBlobUrl) {
-        URL.revokeObjectURL(currentBlobUrl);
-        currentBlobUrl = null;
-      }
-      return;
-    }
-    
-    // Limit queries to USA
-    const geoViewExtent = webMercatorUtils.webMercatorToGeographic(viewExtent);
-      const usa = { xmin: -179.0, ymin: 18.0, xmax: -66.0, ymax: 72.0 };
-      const xmin = Math.max(geoViewExtent.xmin, usa.xmin);
-      const ymin = Math.max(geoViewExtent.ymin, usa.ymin);
-      const xmax = Math.min(geoViewExtent.xmax, usa.xmax);
-      const ymax = Math.min(geoViewExtent.ymax, usa.ymax);
-    
-      if (xmin >= xmax || ymin >= ymax) {
-        if (osmLayer) {
-          appConfig.activeView.map.remove(osmLayer);
-          osmLayer = null;
-        }
-        if (currentBlobUrl) {
-          URL.revokeObjectURL(currentBlobUrl);
-          currentBlobUrl = null;
-        }
-        return;
-      }
-    
-    const queryExtent = { xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326, isWGS84: true } };
-    
-    // Deduplicate requests
-    const rx = v => Math.round(v * 1000) / 1000;
-    const key = `${rx(queryExtent.xmin)},${rx(queryExtent.ymin)},${rx(queryExtent.xmax)},${rx(queryExtent.ymax)}|z${appConfig.activeView.zoom}`;
-    if (key === lastQueryKey) return;
-    lastQueryKey = key;
-
-    const geojson = await fetchOSMGeoJSON(queryExtent);
-    
-    if (!geojson.features?.length) {
-      if (osmLayer) {
-        appConfig.activeView.map.remove(osmLayer);
-        osmLayer = null;
-      }
-      if (currentBlobUrl) {
-        URL.revokeObjectURL(currentBlobUrl);
-        currentBlobUrl = null;
-      }
-      return;
-    }
-    
-    const blob = new Blob([JSON.stringify(geojson)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    if (osmLayer) {
-      appConfig.activeView.map.remove(osmLayer);
-      osmLayer = null;
-    }
-    
-    if (currentBlobUrl) {
-      setTimeout(() => URL.revokeObjectURL(currentBlobUrl), 2000);
-    }
-    currentBlobUrl = url;
-
-    osmLayer = new GeoJSONLayer({
-      url,
-      title: "OSM Paths/Tracks",
-      fields: [
-        { name: "id", type: "string" },
-        { name: "highway", type: "string" },
-        { name: "name", type: "string" },
-        { name: "surface", type: "string" },
-        { name: "footway", type: "string" }
-      ],
-      renderer: {
-        type: "unique-value",
-        field: "highway",
-        defaultSymbol: { type: "simple-line", color: "#6e6e6e", width: 2, style: "dash" },
-        uniqueValueInfos: [
-          { value: "path", symbol: { type: "simple-line", color: "#2e7d32", width: 2, style: "dash" } },
-          { value: "footway", symbol: { type: "simple-line", color: "#ff6f00", width: 2, style: "dash" } }
-        ]
-      },
-      popupTemplate: {
-        title: "{name}",
-        content: [{ type: "fields", fieldInfos: [
-            { fieldName: "highway", label: "Highway Type" },
-            { fieldName: "footway", label: "Footway Type" },
-            { fieldName: "surface", label: "Surface" },
-            { fieldName: "id", label: "OSM Way ID" }
-        ]}]
-      }
-    });
-
-    osmLayer.load()
-      .then(() => {
-        console.log('OSM layer loaded successfully');
-        appConfig.activeView.map.add(osmLayer);
-      })
-      .catch(err => {
-        console.warn('OSM layer failed to load:', err.message);
-      });
-  } catch (e) {
-    console.error("Failed to load OSM data", e);
-  }
-}
-
-
-// ============================================================================
-// VIEW LISTENERS
-// ============================================================================
-
-// Setup view listeners
-function setupViewListeners() {
-  appConfig.activeView.when(loadOSMLayerForView);
-
-// Refresh OSM data when user stops navigating (debounced)
-let refreshHandle;
-  reactiveUtils.watch(
-    () => appConfig.activeView.stationary,
-    (isStationary) => {
-  if (isStationary) {
-    clearTimeout(refreshHandle);
-    refreshHandle = setTimeout(loadOSMLayerForView, 500);
-  }
-    }
-  );
-}
-
-// Initialize view listeners
-setupViewListeners();
-
-// ============================================================================
-// LAYER LIST WIDGET
-// ============================================================================
+// === LAYER LIST WIDGET ===
 
 // Create and add LayerList widget with Expand
 if (mapView) {
@@ -708,10 +578,11 @@ if (mapView) {
     visibilityAppearance: "checkbox",
     listItemCreatedFunction: (event) => {
       const item = event.item;
-      if (item.layer === reportsLayer) {
+      const layer = item.layer;
+      
+      // Customize layer titles
+      if (layer && layer === reportsLayer) {
         item.title = "Trail Issue Reports";
-      } else if (item.layer === osmLayer) {
-        item.title = "OSM Trails";
       }
     }
   });
@@ -732,9 +603,7 @@ if (mapView) {
   });
 }
 
-// ============================================================================
-// DOM EVENT LISTENERS
-// ============================================================================
+// === DOM EVENT LISTENERS ===
 
 // Initialize DOM event listeners
 setTimeout(() => {
@@ -769,20 +638,18 @@ setTimeout(() => {
     }, { capture: true });
   }
   
-  // Fallback delegate for report button
-  document.addEventListener('click', (e) => {
-    const t = e.target;
-    if (!t) return;
-    if (t.id === 'btnReport' || t.closest?.('#btnReport')) {
-      e.preventDefault();
-      e.stopPropagation();
-      const p = document.getElementById('controlPanel');
-      if (p) { 
-        p.hidden = false; 
-        isReportMode = true;
+  // Splash close wiring
+  const closeSplashBtn = document.getElementById('closeSplashBtn');
+  const splash = document.getElementById('splashScreen');
+  const dontShowAgain = document.getElementById('dontShowAgain');
+  if (closeSplashBtn && splash) {
+    closeSplashBtn.addEventListener('click', () => {
+      splash.classList.add('hidden');
+      if (dontShowAgain && dontShowAgain.checked) {
+        localStorage.setItem('hasSeenTrailSplash', 'true');
       }
-    }
-  }, { capture: true });
+    });
+  }
 
   // Use Current Location button
   const btnUseCurrentLocation = document.getElementById('btnUseCurrentLocation');
@@ -813,17 +680,15 @@ setTimeout(() => {
           updateAdminUI({ STATE_NAME: state }, { NAME: county });
           updateLocationStatus('Using current location');
           
-          if (mapView.zoom < MIN_FETCH_ZOOM) {
-            await mapView.goTo({ target: point, zoom: MIN_FETCH_ZOOM });
+          if (mapView.zoom < 13) {
+            await mapView.goTo({ target: point, zoom: 13 });
           } else {
             await mapView.goTo({ target: point });
           }
-          
-          await loadOSMLayerForView();
         } else {
-      const locateEl2 = document.querySelector("arcgis-locate");
-      if (locateEl2) {
-        locateEl2.locate();
+      const locateWidget = document.querySelector("arcgis-locate");
+      if (locateWidget) {
+        locateWidget.locate();
           }
         }
       } catch (error) {
@@ -845,7 +710,7 @@ setTimeout(() => {
       } else {
         btnTapMap.appearance = 'outline';
         updateLocationStatus('No location set');
-        document.getElementById('locationText').style.color = '#bdbdbd';
+        document.getElementById('locationText').style.color = '#696969';
         // Clear selected point when exiting tap mode
         setSelectedPoint(null);
         updateLocationStatus('No location set');

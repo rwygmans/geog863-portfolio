@@ -16,8 +16,8 @@ arcgis-map {
   display: block;
 }
 
-/* App container layout */
-#appContainer {
+/* Calcite shell layout */
+calcite-shell {
   position: relative;
   height: 100vh;
   width: 100vw;
@@ -30,7 +30,7 @@ arcgis-map {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,8 +46,8 @@ arcgis-map {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e0e0e0;
-  border-top: 3px solid #0079c1;
+  border: 3px solid #e8f4f8;
+  border-top: 3px solid #00b2ef;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -64,10 +64,11 @@ arcgis-map {
   width: 280px;
   max-height: calc(100vh - 20px);
   overflow: auto;
-  background: rgba(18,18,18,0.92);
-  color: #eaeaea;
+  background: rgba(255,255,255,0.95);
+  color: #323232;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border: 1px solid rgba(0,0,0,0.08);
   padding: 0;
 }
 
@@ -78,11 +79,11 @@ arcgis-map {
   gap: 8px;
   position: sticky;
   top: 0;
-  background: rgba(18,18,18,0.92);
+  background: rgba(255,255,255,0.95);
   z-index: 10;
   padding: 12px 14px;
   margin: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(0,0,0,0.1);
   border-radius: 8px 8px 0 0;
 }
 
@@ -90,7 +91,7 @@ arcgis-map {
   appearance: none;
   border: none;
   background: transparent;
-  color: #eaeaea;
+  color: #646464;
   font-size: 18px;
   line-height: 1;
   padding: 4px 6px;
@@ -99,7 +100,7 @@ arcgis-map {
 }
 
 #controlPanel .close-btn:active {
-  background: rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.08);
 }
 
 #controlPanel .panel-heading {
@@ -122,7 +123,7 @@ arcgis-map {
   display: block;
   font-size: 12px;
   margin-bottom: 4px;
-  color: #bdbdbd;
+  color: #505050;
 }
 
 /* Native selects are not used; Calcite selects fill width by attribute */
@@ -241,7 +242,7 @@ arcgis-search {
   #controlPanel .panel-top {
     position: sticky;
     top: 0;
-    background: rgba(18,18,18,0.95);
+    background: rgba(255,255,255,0.95);
     backdrop-filter: blur(8px);
     border-radius: 8px 8px 0 0;
     margin: 0;
@@ -259,19 +260,17 @@ arcgis-search {
   cursor: not-allowed;
 }
 
-/* ============================================================================
-   PHOTO ATTACHMENT STYLING
-   ============================================================================ */
+/* === Photo Attachment === */
 
 #photoContainer {
   position: relative;
 }
 
 #photoPreview {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: 6px;
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 #photoImage {
@@ -307,4 +306,118 @@ arcgis-search {
   #btnSelectPhoto {
     --calcite-ui-control-size: 44px;
   }
+}
+
+/* === Splash Screen === */
+
+.splash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(3px);
+}
+
+.splash-overlay.hidden {
+  display: none;
+}
+
+.splash-content {
+  background: #ffffff;
+  padding: 22px 22px 18px 22px;
+  border-radius: 12px;
+  max-width: 520px;
+  width: calc(100vw - 40px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+  animation: splash-slide-in 220ms ease-out;
+}
+
+.splash-content h2 {
+  margin: 0 0 6px 0;
+  color: #2c3e50;
+  font-size: 22px;
+}
+
+.splash-sub {
+  color: #505050;
+  margin: 0 0 12px 0;
+}
+
+.instructions h3 {
+  margin: 10px 0 6px 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.instructions ol {
+  margin: 0 0 10px 18px;
+  padding: 0;
+  color: #505050;
+}
+
+.instructions li { 
+  margin: 6px 0; 
+  line-height: 1.45; 
+}
+
+.tip {
+  background: #e7f3ff;
+  border: 1px solid #cfe6ff;
+  color: #245a8d;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.note {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.splash-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.splash-checkbox {
+  font-size: 13px;
+  color: #505050;
+}
+
+.splash-close-btn {
+  appearance: none;
+  border: none;
+  background: #ffc107;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.splash-close-btn:hover { background: #ffb300; }
+.splash-close-btn:active { transform: scale(0.98); }
+
+@keyframes splash-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .splash-content { max-width: 94vw; }
 }
