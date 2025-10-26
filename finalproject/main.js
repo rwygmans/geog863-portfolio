@@ -357,8 +357,6 @@ function hidePanel() {
   panel.style.transform = '';
   panel.style.opacity = '';
   isReportMode = false;
-  
-  // Reset form when panel is closed
   resetForm();
 }
 

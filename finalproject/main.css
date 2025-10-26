@@ -14,6 +14,8 @@ arcgis-map {
   margin: 0;
   padding: 0;
   display: block;
+  position: relative; /* create stacking context for map UI */
+  z-index: 1;
 }
 
 /* Calcite shell layout */
@@ -70,6 +72,7 @@ calcite-shell {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   border: 1px solid rgba(0,0,0,0.08);
   padding: 0;
+  z-index: 1001;
 }
 
 #controlPanel .panel-top {
@@ -128,13 +131,33 @@ calcite-shell {
 
 /* Native selects are not used; Calcite selects fill width by attribute */
 
+/* Ensure popup appears above report button */
+.esri-popup {
+  z-index: 1002 !important;
+}
+
+/* Hide report button on mobile when popup or form panel is visible */
+@media (max-width: 768px) {
+  /* Hide when popup is open */
+  .esri-popup:not(.esri-popup--hidden) ~ .report-btn,
+  :has(.esri-popup:not(.esri-popup--hidden)) .report-btn {
+    display: none !important;
+  }
+  
+  /* Hide when form panel is open */
+  #controlPanel:not([hidden]) ~ .report-btn,
+  :has(#controlPanel:not([hidden])) .report-btn {
+    display: none !important;
+  }
+}
+
 /* Report button at bottom */
 .report-btn {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 20px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 999;
+  z-index: 50;
   appearance: none;
   border: none;
   background: #ffc107;
@@ -218,7 +241,7 @@ arcgis-search {
     transition: transform 300ms ease-out, opacity 300ms ease-out;
     will-change: transform;
     transform: translateY(100%); /* Start off-screen below */
-    z-index: 1000;
+    z-index: 500 !important;
   }
 
   /* When panel is visible, slide it up */
@@ -333,7 +356,9 @@ arcgis-search {
   padding: 22px 22px 18px 22px;
   border-radius: 12px;
   max-width: 520px;
+  max-height: 70vh;
   width: calc(100vw - 40px);
+  overflow-y: auto;
   box-shadow: 0 12px 32px rgba(0,0,0,0.25);
   animation: splash-slide-in 220ms ease-out;
 }
@@ -419,5 +444,8 @@ arcgis-search {
 }
 
 @media (max-width: 768px) {
-  .splash-content { max-width: 94vw; }
+  .splash-content { 
+    max-width: 94vw;
+    max-height: 75vh;
+  }
 }
